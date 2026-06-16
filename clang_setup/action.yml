@@ -1,0 +1,123 @@
+name: 'Setup Clang Toolchain'
+description: 'Downloads, extracts and PATH-exports a clang toolchain from nullptr-t-oss/kernel_toolchains releases'
+author: 'nullptr-t-oss'
+
+inputs:
+  clang-version:
+    description: |
+      Full asset name (without .tar.zst), e.g.:
+        aosp-clang-3289846
+        clo-clang-r12345
+    required: true
+
+outputs:
+  clang-path:
+    description: 'Absolute path to the bin/ directory (already on PATH)'
+    value: ${{ steps.resolve.outputs.clang-path }}
+
+runs:
+  using: 'composite'
+  steps:
+
+    - name: Resolve toolchain metadata
+      id: resolve
+      shell: bash
+      run: |
+        INPUT="${{ inputs.clang-version }}"
+
+        case "$INPUT" in
+          aosp-clang-3289846)
+            RELEASE_TAG="aosp-a16-qpr2-rel"
+            ;;
+          aosp-clang-r547379)
+            RELEASE_TAG="aosp-a16-qpr2-rel"
+            ;;
+          aosp-clang-r563880)
+            RELEASE_TAG="aosp-a16-qpr2-rel"
+            ;;
+          aosp-clang-r563880c)
+            RELEASE_TAG="aosp-a16-qpr2-rel"
+            ;;
+          aosp-clang-r574158)
+            RELEASE_TAG="aosp-a16-qpr2-rel"
+            ;;
+          *)
+            echo "::error::Unknown clang-version prefix: '${INPUT}'"
+            exit 1
+            ;;
+        esac
+
+        ASSET_NAME="${INPUT}.tar.zst"
+        DOWNLOAD_URL="https://github.com/nullptr-t-oss/kernel_toolchains/releases/download/${RELEASE_TAG}/${ASSET_NAME}"
+        INSTALL_DIR="${{ github.workspace }}/toolchains/${INPUT}"
+        CLANG_PATH="${INSTALL_DIR}/bin"
+
+        echo "[INFO] release-tag=${RELEASE_TAG}"   >> "$GITHUB_OUTPUT"
+        echo "[INFO] asset-name=${ASSET_NAME}"     >> "$GITHUB_OUTPUT"
+        echo "[INFO] download-url=${DOWNLOAD_URL}" >> "$GITHUB_OUTPUT"
+        echo "[INFO] install-dir=${INSTALL_DIR}"   >> "$GITHUB_OUTPUT"
+        echo "[INFO] clang-path=${CLANG_PATH}"     >> "$GITHUB_OUTPUT"
+
+        echo "::notice::Version      : ${INPUT}"
+        echo "::notice::Release tag  : ${RELEASE_TAG}"
+        echo "::notice::Download URL : ${DOWNLOAD_URL}"
+        echo "::notice::Install dir  : ${INSTALL_DIR}"
+
+    - name: Cache toolchain
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.resolve.outputs.install-dir }}
+        key: toolchain-${{ steps.resolve.outputs.release-tag }}-${{ inputs.clang-version }}
+
+    - name: Install zstd
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        if ! command -v zstd &>/dev/null; then
+          echo "zstd not found — installing..."
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends zstd
+        else
+          echo "zstd already present: $(zstd --version)"
+        fi
+
+    - name: Download toolchain
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        ARCHIVE="/tmp/${{ steps.resolve.outputs.asset-name }}"
+        echo "Downloading ${{ steps.resolve.outputs.download-url }} …"
+        curl -fL --retry 5 --retry-delay 10 --progress-bar \
+             -o "${ARCHIVE}" \
+             "${{ steps.resolve.outputs.download-url }}"
+        echo "Downloaded $(du -sh "${ARCHIVE}" | cut -f1)"
+
+    - name: Extract toolchain
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        ARCHIVE="/tmp/${{ steps.resolve.outputs.asset-name }}"
+        DEST="${{ steps.resolve.outputs.install-dir }}"
+        mkdir -p "${DEST}"
+        echo "Extracting → ${DEST} …"
+        tar --use-compress-program=zstd -xf "${ARCHIVE}" -C "${DEST}" --strip-components=1
+        rm -f "${ARCHIVE}"
+        echo "Extraction complete."
+
+    - name: Verify clang binary
+      shell: bash
+      run: |
+        BIN="${{ steps.resolve.outputs.clang-path }}/clang"
+        if [[ ! -x "${BIN}" ]]; then
+          echo "::error::clang binary not found at ${BIN}"
+          ls -la "${{ steps.resolve.outputs.install-dir }}/" || true
+          exit 1
+        fi
+        echo "[NOTICE] Using clang : $(${BIN} --version | head -1)"
+
+    - name: Add clang to PATH
+      shell: bash
+      run: |
+        echo "${{ steps.resolve.outputs.clang-path }}" >> "$GITHUB_PATH"
+        echo "::notice::PATH : ${{ steps.resolve.outputs.clang-path }}"

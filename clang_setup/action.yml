@@ -67,11 +67,11 @@ runs:
 
         CLANG_PATH="${INSTALL_DIR}/bin"
 
-        echo "[INFO] release-tag=${RELEASE_TAG}"   >> "$GITHUB_OUTPUT"
-        echo "[INFO] asset-name=${ASSET_NAME}"     >> "$GITHUB_OUTPUT"
-        echo "[INFO] download-url=${DOWNLOAD_URL}" >> "$GITHUB_OUTPUT"
-        echo "[INFO] install-dir=${INSTALL_DIR}"   >> "$GITHUB_OUTPUT"
-        echo "[INFO] clang-path=${CLANG_PATH}"     >> "$GITHUB_OUTPUT"
+        echo "release-tag=${RELEASE_TAG}"   >> "$GITHUB_OUTPUT"
+        echo "asset-name=${ASSET_NAME}"     >> "$GITHUB_OUTPUT"
+        echo "download-url=${DOWNLOAD_URL}" >> "$GITHUB_OUTPUT"
+        echo "install-dir=${INSTALL_DIR}"   >> "$GITHUB_OUTPUT"
+        echo "clang-path=${CLANG_PATH}"     >> "$GITHUB_OUTPUT"
 
         echo "::notice::Version      : ${INPUT}"
         echo "::notice::Release tag  : ${RELEASE_TAG}"

@@ -10,6 +10,13 @@ inputs:
         clo-clang-r12345
     required: true
 
+  install-dir:
+    description: |
+      Directory to extract the toolchain into.
+      Defaults to $GITHUB_WORKSPACE/toolchains/<clang-version>
+    required: false
+    default: ''
+
 outputs:
   clang-path:
     description: 'Absolute path to the bin/ directory (already on PATH)'
@@ -42,14 +49,22 @@ runs:
             RELEASE_TAG="aosp-a16-qpr2-rel"
             ;;
           *)
-            echo "::error::Unknown clang-version prefix: '${INPUT}'"
+            echo "::error::Unknown clang-version: '${INPUT}'"
             exit 1
             ;;
         esac
 
         ASSET_NAME="${INPUT}.tar.zst"
         DOWNLOAD_URL="https://github.com/nullptr-t-oss/kernel_toolchains/releases/download/${RELEASE_TAG}/${ASSET_NAME}"
-        INSTALL_DIR="${{ github.workspace }}/toolchains/${INPUT}"
+
+        # Use custom install-dir if provided, otherwise fall back to default
+        CUSTOM_DIR="${{ inputs.install-dir }}"
+        if [[ -n "${CUSTOM_DIR}" ]]; then
+          INSTALL_DIR="${CUSTOM_DIR}/${INPUT}"
+        else
+          INSTALL_DIR="${{ github.workspace }}/toolchains/${INPUT}"
+        fi
+
         CLANG_PATH="${INSTALL_DIR}/bin"
 
         echo "[INFO] release-tag=${RELEASE_TAG}"   >> "$GITHUB_OUTPUT"
